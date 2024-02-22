@@ -41,7 +41,7 @@ export function Landing() {
 
   return (
     <>
-      <main className="flex min-h-screen flex-col items-center gap-20 p-12">
+      <main className="flex min-h-screen flex-col items-center gap-20 p-12 justify-between">
         <div className="z-10 max-w-8xl w-full items-center justify-between font-mono text-sm lg:flex">
           {currentAccount ?
             <>
@@ -65,6 +65,9 @@ export function Landing() {
           <RunExplorer runObjectId={runId}/>
         </div>
 
+        <div>
+          Copyright (c) 2024 Galadriel
+        </div>
       </main>
     </>
   )
