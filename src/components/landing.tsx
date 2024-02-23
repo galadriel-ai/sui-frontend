@@ -62,7 +62,7 @@ export function Landing() {
     const txb = new TransactionBlock()
     const packageName: string = "agent"
     const functionName: string = "init_agent"
-    const maxIterations: number = 3
+    const maxIterations: number = 5
     txb.moveCall({
       target: `${process.env.NEXT_PUBLIC_PACKAGE_ID}::${packageName}::${functionName}`,
       // object IDs must be wrapped in moveCall arguments
