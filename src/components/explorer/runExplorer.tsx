@@ -100,7 +100,6 @@ export const RunExplorer = ({runObjectId}: Props) => {
 
   return <>
     <div className="flex flex-col gap-y-2 w-full pt-10 pb-32">
-      asdasd
       {(agentRun && !isLoading) &&
         <AgentRunDisplay agentRun={agentRun}/>
       }
