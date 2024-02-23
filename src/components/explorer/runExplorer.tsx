@@ -31,10 +31,12 @@ interface AgentRun {
 export const RunExplorer = ({runObjectId}: Props) => {
   const client = useSuiClient()
 
+  let [isLoading, setIsLoading] = useState<boolean>(false)
   let [agentRun, setAgentRun] = useState<AgentRun | undefined>()
 
   useEffect(() => {
     if (runObjectId) {
+      setIsLoading(true)
       getRunObject(runObjectId)
     }
   }, [client, runObjectId])
@@ -64,8 +66,12 @@ export const RunExplorer = ({runObjectId}: Props) => {
         llmDataId,
         llmData: await getRunLlmData(llmDataId),
       }
-      console.log(agentRun)
+      setIsLoading(false)
       setAgentRun(agentRun)
+      if (!agentRun.isFinished) {
+        await new Promise(r => setTimeout(r, 3000))
+        await getRunObject(objectId)
+      }
     }
   }
 
@@ -94,27 +100,11 @@ export const RunExplorer = ({runObjectId}: Props) => {
 
   return <>
     <div className="flex flex-col gap-y-2 w-full pt-10 pb-32">
-      {agentRun ?
+      asdasd
+      {(agentRun && !isLoading) &&
         <AgentRunDisplay agentRun={agentRun}/>
-        :
-        <div className="pt-20">
-          <svg className="animate-spin h-32 w-32 mx-auto text-white" viewBox="0 0 24 24">
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            />
-          </svg>
-        </div>
       }
+      {isLoading && <Loader/>}
     </div>
 
   </>
@@ -170,6 +160,7 @@ const AgentRunDisplay = ({agentRun}: { agentRun: AgentRun }) => {
             <LlmDataContent text={d.content}/>
           </div>
         </div>)}
+        {!agentRun.isFinished && <Loader/>}
       </>
       }
     </div>
@@ -233,5 +224,25 @@ const LlmDataContent = ({text}: { text: string }) => {
         theme={theme}
       />
     }
+  </div>
+}
+
+const Loader = () => {
+  return <div className="pt-20">
+    <svg className="animate-spin h-32 w-32 mx-auto text-white" viewBox="0 0 24 24">
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+      />
+    </svg>
   </div>
 }

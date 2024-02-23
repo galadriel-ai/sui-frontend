@@ -1,41 +1,165 @@
 "use client"
 
 import {useEffect, useState} from "react"
-import {ConnectButton, ConnectModal, useAccounts, useCurrentAccount, useSuiClient, useWallets} from "@mysten/dapp-kit"
+import {
+  ConnectButton,
+  useAccounts,
+  useCurrentAccount,
+  useSignAndExecuteTransactionBlock,
+  useSuiClient,
+  useWallets
+} from "@mysten/dapp-kit"
 // @ts-ignore
 import {CoinBalance} from "@mysten/sui.js/src/client"
 import {RunExplorer} from "@/components/explorer/runExplorer";
+import {Input} from "@/components/ui/input";
+import {TransactionBlock} from '@mysten/sui.js/transactions';
 
 const MIST_PER_SUI = BigInt(1000000000)
 
 
 export function Landing() {
-
   const client = useSuiClient()
   const wallets = useWallets()
   const accounts = useAccounts()
   const currentAccount = useCurrentAccount()
+  const {mutate: signAndExecuteTransactionBlock} = useSignAndExecuteTransactionBlock();
 
-  // TODO: set dynamically somehow etc
-  const runId: string = "0xd5923ed0b7ef32c3d4d14bf4594acb1d912573b6fb56ed245db0140ef334d997"
+  const [searchInput, setSearchInput] = useState<string>("")
+  const [searchErrorMessage, setSearchErrorMessage] = useState<string>("")
+
+  const [agentInput, setAgentInput] = useState<string>("")
+  const [agentErrorMessage, setAgentErrorMessage] = useState<string>("")
+
+
+  // const runId: string = "0xd5923ed0b7ef32c3d4d14bf4594acb1d912573b6fb56ed245db0140ef334d997"
+  const [runId, setRunId] = useState<string | undefined>()
 
   const [balance, setBalance] = useState<number>(0)
 
-  const getBalance = async (address: string) => {
-    const balance = await client.getBalance({
-      owner: address
-    })
-    setBalance(formatBalance(balance))
-  }
   useEffect(() => {
+    const getBalance = async (address: string) => {
+      const balance = await client.getBalance({
+        owner: address
+      })
+      setBalance(formatBalance(balance))
+    }
     if (currentAccount) {
       getBalance(currentAccount.address)
     }
-  }, [getBalance, currentAccount])
+  }, [currentAccount])
 
 
   const formatBalance = (balance: CoinBalance) => {
     return Number.parseInt(balance.totalBalance) / Number(MIST_PER_SUI)
+  }
+
+  const onStartAgent = (): void => {
+    if (!agentInput) {
+      return
+    }
+
+    const txb = new TransactionBlock()
+    const packageName: string = "agent"
+    const functionName: string = "init_agent"
+    const maxIterations: number = 3
+    txb.moveCall({
+      target: `${process.env.NEXT_PUBLIC_PACKAGE_ID}::${packageName}::${functionName}`,
+      // object IDs must be wrapped in moveCall arguments
+      arguments: [
+        txb.pure.string(agentInput),
+        txb.pure.string(""),
+        txb.pure.string(""),
+        txb.pure.u64(maxIterations),
+        txb.pure.address(process.env.NEXT_PUBLIC_ORACLE_ACCOUNT_ADDRESS || "")
+      ],
+    })
+    const createdObjects: string[] = []
+    signAndExecuteTransactionBlock(
+      {
+        transactionBlock: txb,
+        chain: `sui:${process.env.NETWORK || "devnet"}`,
+        options: {
+          showObjectChanges: true
+        }
+      },
+      {
+        onSuccess: (result) => {
+          console.log("Executed transaction block");
+          console.log(result);
+          (result.objectChanges || []).forEach((o: any) => {
+            if (o.objectType.includes("AgentRun")) {
+              createdObjects.push(o.objectId)
+            }
+          })
+          console.log("Created objects")
+          console.log(createdObjects)
+          if (createdObjects.length) {
+            registerAgent(createdObjects[0])
+            setRunId(createdObjects[0])
+          }
+        },
+        onError: (error) => {
+          console.log("Transaction error")
+          console.log(error)
+        }
+      },
+    );
+  }
+
+  const registerAgent = (agentRunObjectId: string) => {
+    // TODO: wrap this functionality in a promise in async function and return isSuccess?
+    const txb = new TransactionBlock()
+    const packageName: string = "oracle"
+    const functionName: string = "register_agent"
+    txb.moveCall({
+      target: `${process.env.NEXT_PUBLIC_REGISTRY_PACKAGE_ID}::${packageName}::${functionName}`,
+      // object IDs must be wrapped in moveCall arguments
+      arguments: [
+        txb.object(process.env.NEXT_PUBLIC_REGISTRY_OBJECT_ID || ""),
+        txb.pure.string(process.env.NEXT_PUBLIC_PACKAGE_ID || ""),
+        txb.pure.string(agentRunObjectId),
+      ],
+    })
+    let success: boolean = false
+    signAndExecuteTransactionBlock(
+      {
+        transactionBlock: txb,
+        chain: `sui:${process.env.NETWORK || "devnet"}`,
+      },
+      {
+        onSuccess: (result) => {
+        },
+        onError: (error) => {
+          console.log("Oracle transaction error")
+          console.log(error)
+        }
+      },
+    );
+  }
+
+  const SUI_ADDRESS_LENGTH = 32;
+
+  const isHex = (value: string): boolean => {
+    return /^(0x|0X)?[a-fA-F0-9]+$/.test(value) && value.length % 2 === 0;
+  }
+
+  const getHexByteLength = (value: string): number => {
+    return /^(0x|0X)/.test(value) ? (value.length - 2) / 2 : value.length / 2;
+  }
+
+  const isValidSuiAddress = (value: string): boolean => {
+    return isHex(value) && getHexByteLength(value) === SUI_ADDRESS_LENGTH;
+  }
+
+  const onSearch = (): void => {
+    if (searchInput) {
+      if (!isValidSuiAddress(searchInput)) {
+        setAgentErrorMessage("Invalid object ID")
+        return
+      }
+      setRunId(searchInput)
+    }
   }
 
 
@@ -59,10 +183,69 @@ export function Landing() {
             />
           </div>
         </div>
+        <div>
+          This demo only works on SUI devnet. Make sure your wallet has funds.<br/>
+          To Run an agent two transactions are necessary, one to initialize an agent run and the second one to register
+          the agent in an oracle.
+        </div>
 
         <div
-          className="flex flex-col gap-4 max-w-8xl w-full relative place-items-center">
-          <RunExplorer runObjectId={runId}/>
+          className="flex flex-col grow gap-4 max-w-8xl w-full relative place-items-center h-full">
+          <div className="flex flex-row w-full gap-4">
+
+            <div className="basis-1/2 flex flex-col grow gap-4 max-w-8xl w-full relative place-items-center h-full">
+              {currentAccount ?
+                <>
+                  <div className="min-h-[24px] text-red-400">
+                    {agentErrorMessage}
+                  </div>
+                  <Input
+                    value={agentInput}
+                    placeholder="Agent run query"
+                    onChange={e => {
+                      setAgentInput(e.target.value)
+                      if (searchErrorMessage) setSearchErrorMessage("")
+                      if (agentErrorMessage) setAgentErrorMessage("")
+                    }
+                    }
+                  />
+                  <button
+                    className="p-2 px-4 rounded bg-gray-50 text-black hover:bg-gray-300 duration-200 focus:outline-none"
+                    onClick={() => onStartAgent()}
+                  >
+                    Start agent
+                  </button>
+                </>
+                :
+                <div>Connect wallet to start an agent</div>
+              }
+            </div>
+
+            <div className="basis-1/2 flex flex-col grow gap-4 max-w-8xl w-full relative place-items-center h-full">
+              <div className="min-h-[24px] text-red-400">
+                {agentErrorMessage}
+              </div>
+              <Input
+                value={searchInput}
+                placeholder="Existing run ID"
+                onChange={e => {
+                  setSearchInput(e.target.value)
+                  if (searchErrorMessage) setSearchErrorMessage("")
+                  if (agentErrorMessage) setAgentErrorMessage("")
+                }
+                }
+              />
+              <button
+                className="p-2 px-4 rounded bg-gray-50 text-black hover:bg-gray-300 duration-200 focus:outline-none"
+                onClick={() => onSearch()}
+              >
+                Search
+              </button>
+            </div>
+
+          </div>
+
+          {runId && <RunExplorer runObjectId={runId}/>}
         </div>
 
         <div>
