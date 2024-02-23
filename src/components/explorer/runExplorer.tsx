@@ -160,7 +160,7 @@ const AgentRunDisplay = ({agentRun}: { agentRun: AgentRun }) => {
               Function run ID: {d.functionRunId}
             </div>}
           </div>
-          <div className="basis-3/4 whitespace-pre-line rounded-2xl bg-[#2b2b2b] bg-opacity-80 p-4">
+          <div className="basis-3/4 whitespace-pre-line rounded-2xl bg-[#141414] bg-opacity-80 p-4">
             <LlmDataContent text={d.content}/>
           </div>
         </div>)}
