@@ -177,7 +177,7 @@ export function Landing() {
             </>
           }
           <div
-            className="fixed bottom-0 left-0 flex flex-col h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
+            className="flex flex-col h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
             <div className="mx-auto pb-2">
               Only regular wallets supported! (no zk support)
             </div>
@@ -186,14 +186,13 @@ export function Landing() {
             />
           </div>
         </div>
-        <div>
-          This demo only works on SUI devnet. Make sure your wallet has funds.<br/>
-          To Run an agent two transactions are necessary, one to initialize an agent run and the second one to register
-          the agent in an oracle.
-        </div>
-
-        <div
-          className="flex flex-col grow gap-4 max-w-8xl w-full relative place-items-center h-full">
+        <div className="w-full items-center flex flex-col p-6 bg-gray-200 rounded-2xl text-black border-t-2 border-blue-300">
+          <div>
+            This demo only works on SUI devnet. Make sure your wallet has funds.<br/>
+            To Run an agent two transactions are necessary, one to initialize an agent run and the second one to
+            register
+            the agent in an oracle.
+          </div>
           <div className="flex flex-row w-full gap-4">
 
             <div className="basis-1/2 flex flex-col grow gap-4 max-w-8xl w-full relative place-items-center h-full">
@@ -213,14 +212,14 @@ export function Landing() {
                     }
                   />
                   <button
-                    className="p-2 px-4 rounded bg-gray-50 text-black hover:bg-gray-300 duration-200 focus:outline-none"
+                    className="p-2 px-4 rounded bg-gray-800 text-white hover:bg-gray-600 duration-200 focus:outline-none"
                     onClick={() => onStartAgent()}
                   >
                     Start agent
                   </button>
                 </>
                 :
-                <div>Connect wallet to start an agent</div>
+                <div className="pt-8">Connect wallet to start an agent</div>
               }
             </div>
 
@@ -239,14 +238,17 @@ export function Landing() {
                 }
               />
               <button
-                className="p-2 px-4 rounded bg-gray-50 text-black hover:bg-gray-300 duration-200 focus:outline-none"
+                className="p-2 px-4 rounded bg-gray-800 text-white hover:bg-gray-600 duration-200 focus:outline-none"
                 onClick={() => onSearch()}
               >
                 Search
               </button>
             </div>
-
           </div>
+        </div>
+
+        <div
+          className="flex flex-col grow gap-4 max-w-8xl w-full relative place-items-center h-full">
 
           {runId && <RunExplorer runObjectId={runId}/>}
         </div>

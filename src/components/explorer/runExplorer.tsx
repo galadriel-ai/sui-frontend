@@ -111,38 +111,43 @@ export const RunExplorer = ({runObjectId}: Props) => {
 
 const AgentRunDisplay = ({agentRun}: { agentRun: AgentRun }) => {
   return <>
-    <h1 className="text-4xl font-semibold">Agent run details</h1>
-    <div className="flex flex-col gap-5 pt-5">
-      <div className="flex flex-row gap-5">
-        Object id: {agentRun.id}
-        <ExplorerLinks objectId={agentRun.id} type={"object"}/>
-      </div>
-      <div className="flex flex-row gap-5">
-        Owner: {agentRun.owner}
-        <ExplorerLinks objectId={agentRun.owner} type={"address"}/>
-      </div>
-      {agentRun.knowledgeBase &&
+    <div className="bg-[#1c1a1a] rounded-2xl p-4 border-t-2 border-blue-300 border-opacity-50">
+
+      <h1 className="text-4xl font-semibold">Agent run details</h1>
+      <div className="flex flex-col gap-5 pt-5">
         <div className="flex flex-row gap-5">
-          Knowledge base: {agentRun.knowledgeBase}
+          <div><span className="text-blue-200">Object id:</span> {agentRun.id}</div>
+          <ExplorerLinks objectId={agentRun.id} type={"object"}/>
         </div>
-      }
-      {agentRun.knowledgeBase &&
         <div className="flex flex-row gap-5">
-          {agentRun.knowledgeBaseDescription}
+          <div><span className="text-blue-200">Owner:</span> {agentRun.owner}</div>
+          <ExplorerLinks objectId={agentRun.owner} type={"address"}/>
         </div>
-      }
-      <div className="flex flex-row gap-5">
-        Max iterations: {agentRun.maxIterations}
-      </div>
-      <div className="flex flex-row gap-5">
-        Status: {agentRun.isFinished ? "Finished" : "Running"}
+        {agentRun.knowledgeBase &&
+          <div className="flex flex-row gap-5">
+            <div><span className="text-blue-200">Knowledge base:</span> {agentRun.knowledgeBase}</div>
+          </div>
+        }
+        {agentRun.knowledgeBase &&
+          <div className="flex flex-row gap-5">
+            {agentRun.knowledgeBaseDescription}
+          </div>
+        }
+        <div className="flex flex-row gap-5">
+          <div><span className="text-blue-200">Max iterations:</span> {agentRun.maxIterations}</div>
+
+        </div>
+        <div className="flex flex-row gap-5">
+          <div><span className="text-blue-200">Status:</span> {agentRun.isFinished ? "Finished" : "Running"}</div>
+        </div>
       </div>
     </div>
+
     <div className="flex flex-col gap-y-10 pt-10">
       {agentRun && <>
         {agentRun.llmData.map(d => <div
           key={d.id}
-          className="flex flex-row gap-10 pt-10 border-t-2 border-blue-300 border-opacity-50"
+          className="flex flex-row gap-10 pt-10 border-t-2 border-blue-300 border-opacity-50 bg-[#1c1a1a] p-4 rounded-2xl"
         >
           <div className="basis-1/4 flex flex-col gap-3">
             <div>Index: {d.index}</div>
@@ -155,7 +160,7 @@ const AgentRunDisplay = ({agentRun}: { agentRun: AgentRun }) => {
               Function run ID: {d.functionRunId}
             </div>}
           </div>
-          <div className="basis-3/4 whitespace-pre-line rounded bg-[#1c1a1a] bg-opacity-80 p-4">
+          <div className="basis-3/4 whitespace-pre-line rounded-2xl bg-[#2b2b2b] bg-opacity-80 p-4">
             <LlmDataContent text={d.content}/>
           </div>
         </div>)}
