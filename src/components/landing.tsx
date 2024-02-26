@@ -14,6 +14,7 @@ import {CoinBalance} from "@mysten/sui.js/src/client"
 import {RunExplorer} from "@/components/explorer/runExplorer";
 import {Input} from "@/components/ui/input";
 import {TransactionBlock} from '@mysten/sui.js/transactions';
+import {ExplorerLinks} from "@/components/explorer/explorerLinks";
 
 const MIST_PER_SUI = BigInt(1000000000)
 
@@ -186,7 +187,18 @@ export function Landing() {
             />
           </div>
         </div>
-        <div className="w-full items-center flex flex-col p-6 bg-gray-200 rounded-2xl text-black border-t-2 border-blue-300">
+        <div className="w-full text-left">
+          <div>
+            Agent contract address: {process.env.NEXT_PUBLIC_PACKAGE_ID}
+            <ExplorerLinks objectId={process.env.NEXT_PUBLIC_PACKAGE_ID || ""} type={"object"}/>
+          </div>
+          <div className="pt-4">
+            Oracle contract address: {process.env.NEXT_PUBLIC_REGISTRY_PACKAGE_ID}
+            <ExplorerLinks objectId={process.env.NEXT_PUBLIC_REGISTRY_PACKAGE_ID || ""} type={"object"}/>
+          </div>
+        </div>
+        <div
+          className="w-full items-center flex flex-col p-6 bg-gray-200 rounded-2xl text-black border-t-2 border-blue-300">
           <div>
             This demo only works on SUI devnet. Make sure your wallet has funds.<br/>
             To Run an agent two transactions are necessary, one to initialize an agent run and the second one to

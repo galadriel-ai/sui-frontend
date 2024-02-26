@@ -145,7 +145,7 @@ const AgentRunDisplay = ({agentRun}: { agentRun: AgentRun }) => {
 
     <div className="flex flex-col gap-y-10 pt-10">
       {agentRun && <>
-        {agentRun.llmData.map(d => <div
+        {agentRun.llmData.map((d, i) => <div
           key={d.id}
           className="flex flex-row gap-10 pt-10 border-t-2 border-blue-300 border-opacity-50 bg-[#1c1a1a] p-4 rounded-2xl"
         >
@@ -161,7 +161,7 @@ const AgentRunDisplay = ({agentRun}: { agentRun: AgentRun }) => {
             </div>}
           </div>
           <div className="basis-3/4 whitespace-pre-line rounded-2xl bg-[#141414] bg-opacity-80 p-4">
-            <LlmDataContent text={d.content}/>
+            <LlmDataContent text={d.content} isFirst={i === 0}/>
           </div>
         </div>)}
         {!agentRun.isFinished && <Loader/>}
@@ -185,7 +185,7 @@ const LlmDataType = ({type}: { type: string }) => {
   </div>
 }
 
-const LlmDataContent = ({text}: { text: string }) => {
+const LlmDataContent = ({text, isFirst}: { text: string, isFirst: boolean }) => {
   function hasJsonStructure(value: string) {
     try {
       const result = JSON.parse(value);
@@ -219,9 +219,24 @@ const LlmDataContent = ({text}: { text: string }) => {
 
   return <div>
     {!hasJsonStructure(text) ?
-      <>{text}</>
+      <>{isFirst ?
+        <>{text.split("Begin!\nQuestion: ").length > 1 ?
+          <>
+            {text.split("Begin!\nQuestion: ")[0]}
+            {"Begin!\nQuestion: "}
+            <span className="font-bold">
+              {text.split("Begin!\nQuestion: ")[1].split("\nThought:")[0]}
+            </span>
+            {"\nThought: "}
+          </>
+          :
+          <>{text}</>
+        }</>
+        :
+        <>{text}</>
+      }
+      </>
       :
-      // TODO: some nice json viewer
       <JSONTree
         hideRoot={true}
         data={JSON.parse(text)}
