@@ -1,28 +1,24 @@
 "use client"
 
 import {useEffect, useState} from "react"
-import {
-  ConnectButton,
-  useAccounts,
-  useCurrentAccount,
-  useSignAndExecuteTransactionBlock,
-  useSuiClient,
-  useWallets
-} from "@mysten/dapp-kit"
+import {ConnectButton, useCurrentAccount, useSignAndExecuteTransactionBlock, useSuiClient} from "@mysten/dapp-kit"
 // @ts-ignore
 import {CoinBalance} from "@mysten/sui.js/src/client"
 import {RunExplorer} from "@/components/explorer/runExplorer";
 import {Input} from "@/components/ui/input";
 import {TransactionBlock} from '@mysten/sui.js/transactions';
 import {ExplorerLinks} from "@/components/explorer/explorerLinks";
+import {getFullnodeUrl, Network, NETWORK_IDS} from "@/types/network";
 
 const MIST_PER_SUI = BigInt(1000000000)
 
+interface Props {
+  network: Network
+  onSwitchNetwork: (network: Network) => void
+}
 
-export function Landing() {
+export function Landing(props: Props) {
   const client = useSuiClient()
-  const wallets = useWallets()
-  const accounts = useAccounts()
   const currentAccount = useCurrentAccount()
   const {mutate: signAndExecuteTransactionBlock} = useSignAndExecuteTransactionBlock();
 
@@ -32,8 +28,6 @@ export function Landing() {
   const [agentInput, setAgentInput] = useState<string>("")
   const [agentErrorMessage, setAgentErrorMessage] = useState<string>("")
 
-
-  // const runId: string = "0xd5923ed0b7ef32c3d4d14bf4594acb1d912573b6fb56ed245db0140ef334d997"
   const [runId, setRunId] = useState<string | undefined>()
 
   const [balance, setBalance] = useState<number>(0)
@@ -45,10 +39,10 @@ export function Landing() {
       })
       setBalance(formatBalance(balance))
     }
-    if (currentAccount) {
+    if (currentAccount && props.network) {
       getBalance(currentAccount.address)
     }
-  }, [currentAccount])
+  }, [currentAccount, props.network])
 
 
   const formatBalance = (balance: CoinBalance) => {
@@ -65,21 +59,21 @@ export function Landing() {
     const functionName: string = "init_agent"
     const maxIterations: number = 5
     txb.moveCall({
-      target: `${process.env.NEXT_PUBLIC_PACKAGE_ID}::${packageName}::${functionName}`,
+      target: `${NETWORK_IDS[props.network].packageId}::${packageName}::${functionName}`,
       // object IDs must be wrapped in moveCall arguments
       arguments: [
         txb.pure.string(agentInput),
         txb.pure.string(""),
         txb.pure.string(""),
         txb.pure.u64(maxIterations),
-        txb.pure.address(process.env.NEXT_PUBLIC_ORACLE_ACCOUNT_ADDRESS || "")
+        txb.pure.address(NETWORK_IDS[props.network].oracleAccountAddress)
       ],
     })
     const createdObjects: string[] = []
     signAndExecuteTransactionBlock(
       {
         transactionBlock: txb,
-        chain: `sui:${process.env.NETWORK || "devnet"}`,
+        // chain: `sui:${process.env.NETWORK || "devnet"}`,
         options: {
           showObjectChanges: true
         }
@@ -114,11 +108,11 @@ export function Landing() {
     const packageName: string = "oracle"
     const functionName: string = "register_agent"
     txb.moveCall({
-      target: `${process.env.NEXT_PUBLIC_REGISTRY_PACKAGE_ID}::${packageName}::${functionName}`,
+      target: `${NETWORK_IDS[props.network].registryPackageId}::${packageName}::${functionName}`,
       // object IDs must be wrapped in moveCall arguments
       arguments: [
-        txb.object(process.env.NEXT_PUBLIC_REGISTRY_OBJECT_ID || ""),
-        txb.pure.string(process.env.NEXT_PUBLIC_PACKAGE_ID || ""),
+        txb.object(NETWORK_IDS[props.network].registryObjectId),
+        txb.pure.string(NETWORK_IDS[props.network].packageId),
         txb.pure.string(agentRunObjectId),
       ],
     })
@@ -126,7 +120,7 @@ export function Landing() {
     signAndExecuteTransactionBlock(
       {
         transactionBlock: txb,
-        chain: `sui:${process.env.NETWORK || "devnet"}`,
+        // chain: `sui:${process.env.NETWORK || "devnet"}`,
       },
       {
         onSuccess: (result) => {
@@ -182,19 +176,49 @@ export function Landing() {
             <div className="mx-auto pb-2">
               Only regular wallets supported! (no zk support)
             </div>
-            <ConnectButton
-              connectText={"Connect Wallet"}
-            />
+            <div className="flex flex-row gap-4 items-center">
+              <div>
+                Network:
+              </div>
+              <div
+                className={"cursor-pointer hover:text-blue-300 " + (props.network == "devnet" ? "underline" : "")}
+                onClick={() => {
+                  props.onSwitchNetwork("devnet")
+                  setRunId(undefined)
+                }}
+              >
+                Devnet
+              </div>
+              <div
+                className={"mr-8 cursor-pointer hover:text-blue-300 " + (props.network == "custom" ? "underline" : "")}
+                onClick={() => {
+                  props.onSwitchNetwork("custom")
+                  setRunId(undefined)
+                }}
+              >
+                Galadriel Devnet
+              </div>
+              <ConnectButton
+                connectText={"Connect Wallet"}
+              />
+            </div>
+
           </div>
         </div>
         <div className="w-full text-left">
+          <div className="pb-12">
+            Make sure your wallet is connected to
+            <span className="pl-2 font-bold">
+              {props.network !== "devnet" ? getFullnodeUrl(props.network) : "Devnet"}
+            </span>
+          </div>
           <div>
-            Agent contract address: {process.env.NEXT_PUBLIC_PACKAGE_ID}
-            <ExplorerLinks objectId={process.env.NEXT_PUBLIC_PACKAGE_ID || ""} type={"object"}/>
+            Agent contract address: {NETWORK_IDS[props.network].packageId}
+            <ExplorerLinks objectId={NETWORK_IDS[props.network].packageId} type={"object"} network={props.network}/>
           </div>
           <div className="pt-4">
-            Oracle contract address: {process.env.NEXT_PUBLIC_REGISTRY_PACKAGE_ID}
-            <ExplorerLinks objectId={process.env.NEXT_PUBLIC_REGISTRY_PACKAGE_ID || ""} type={"object"}/>
+            Oracle contract address: {NETWORK_IDS[props.network].registryPackageId}
+            <ExplorerLinks objectId={NETWORK_IDS[props.network].registryPackageId} type={"object"} network={props.network}/>
           </div>
         </div>
         <div
@@ -262,7 +286,7 @@ export function Landing() {
         <div
           className="flex flex-col grow gap-4 max-w-8xl w-full relative place-items-center h-full">
 
-          {runId && <RunExplorer runObjectId={runId}/>}
+          {runId && <RunExplorer runObjectId={runId} network={props.network}/>}
         </div>
 
         <div>

@@ -4,9 +4,11 @@ import {useSuiClient} from "@mysten/dapp-kit"
 import {SuiParsedData} from "@mysten/sui.js/src/types"
 import {ExplorerLinks} from "@/components/explorer/explorerLinks"
 import {JSONTree} from 'react-json-tree';
+import {Network} from "@/types/network";
 
 interface Props {
   runObjectId: string
+  network: Network
 }
 
 interface LlmData {
@@ -28,7 +30,7 @@ interface AgentRun {
   llmData: LlmData[]
 }
 
-export const RunExplorer = ({runObjectId}: Props) => {
+export const RunExplorer = ({runObjectId, network}: Props) => {
   const client = useSuiClient()
 
   let [isLoading, setIsLoading] = useState<boolean>(false)
@@ -101,7 +103,7 @@ export const RunExplorer = ({runObjectId}: Props) => {
   return <>
     <div className="flex flex-col gap-y-2 w-full pt-10 pb-32">
       {(agentRun && !isLoading) &&
-        <AgentRunDisplay agentRun={agentRun}/>
+        <AgentRunDisplay agentRun={agentRun} network={network}/>
       }
       {isLoading && <Loader/>}
     </div>
@@ -109,7 +111,7 @@ export const RunExplorer = ({runObjectId}: Props) => {
   </>
 }
 
-const AgentRunDisplay = ({agentRun}: { agentRun: AgentRun }) => {
+const AgentRunDisplay = ({agentRun, network}: { agentRun: AgentRun, network: Network }) => {
   return <>
     <div className="bg-[#1c1a1a] rounded-2xl p-4 border-t-2 border-blue-300 border-opacity-50">
 
@@ -117,11 +119,11 @@ const AgentRunDisplay = ({agentRun}: { agentRun: AgentRun }) => {
       <div className="flex flex-col gap-5 pt-5">
         <div className="flex flex-row gap-5">
           <div><span className="text-blue-200">Object id:</span> {agentRun.id}</div>
-          <ExplorerLinks objectId={agentRun.id} type={"object"}/>
+          <ExplorerLinks objectId={agentRun.id} type={"object"} network={network}/>
         </div>
         <div className="flex flex-row gap-5">
           <div><span className="text-blue-200">Owner:</span> {agentRun.owner}</div>
-          <ExplorerLinks objectId={agentRun.owner} type={"address"}/>
+          <ExplorerLinks objectId={agentRun.owner} type={"address"} network={network}/>
         </div>
         {agentRun.knowledgeBase &&
           <div className="flex flex-row gap-5">
@@ -154,7 +156,7 @@ const AgentRunDisplay = ({agentRun}: { agentRun: AgentRun }) => {
             <LlmDataType type={d.type}/>
             <span className="text-xs">{d.id}</span>
             <div>
-              <ExplorerLinks objectId={d.id} type={"object"}/>
+              <ExplorerLinks objectId={d.id} type={"object"} network={network}/>
             </div>
             {d.functionRunId && <div>
               Function run ID: {d.functionRunId}
