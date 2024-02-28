@@ -177,27 +177,28 @@ export function Landing(props: Props) {
               Only regular wallets supported! (no zk support)
             </div>
             <div className="flex flex-row gap-4 items-center">
-              <div>
-                Network:
-              </div>
-              <div
-                className={"cursor-pointer hover:text-blue-300 " + (props.network == "devnet" ? "underline" : "")}
-                onClick={() => {
-                  props.onSwitchNetwork("devnet")
-                  setRunId(undefined)
-                }}
-              >
-                Devnet
-              </div>
-              <div
-                className={"mr-8 cursor-pointer hover:text-blue-300 " + (props.network == "custom" ? "underline" : "")}
-                onClick={() => {
-                  props.onSwitchNetwork("custom")
-                  setRunId(undefined)
-                }}
-              >
-                Galadriel Devnet
-              </div>
+              {/*TODO: uncomment when our devnet gets a proper domain*/}
+              {/*<div>*/}
+              {/*  Network:*/}
+              {/*</div>*/}
+              {/*<div*/}
+              {/*  className={"cursor-pointer hover:text-blue-300 " + (props.network == "devnet" ? "underline" : "")}*/}
+              {/*  onClick={() => {*/}
+              {/*    props.onSwitchNetwork("devnet")*/}
+              {/*    setRunId(undefined)*/}
+              {/*  }}*/}
+              {/*>*/}
+              {/*  Devnet*/}
+              {/*</div>*/}
+              {/*<div*/}
+              {/*  className={"mr-8 cursor-pointer hover:text-blue-300 " + (props.network == "custom" ? "underline" : "")}*/}
+              {/*  onClick={() => {*/}
+              {/*    props.onSwitchNetwork("custom")*/}
+              {/*    setRunId(undefined)*/}
+              {/*  }}*/}
+              {/*>*/}
+              {/*  Galadriel Devnet*/}
+              {/*</div>*/}
               <ConnectButton
                 connectText={"Connect Wallet"}
               />
