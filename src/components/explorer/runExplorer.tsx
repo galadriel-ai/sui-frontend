@@ -247,7 +247,7 @@ const GameDisplay = ({game, network, onNewSelection}: {
             <div className="whitespace-pre-line rounded-2xl bg-[#141414] bg-opacity-80 p-4">
               <div>{d.content}</div>
             </div>
-            {(game.userSelections.length < (i + 1) && currentAccount && currentAccount.address === game.player) &&
+            {(!game.isFinished && game.userSelections.length < (i + 1) && currentAccount && currentAccount.address === game.player) &&
               <>
                 {isSelectionLoading ?
                   <Loader/>
