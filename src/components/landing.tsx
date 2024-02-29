@@ -25,10 +25,9 @@ export function Landing(props: Props) {
   const [searchInput, setSearchInput] = useState<string>("")
   const [searchErrorMessage, setSearchErrorMessage] = useState<string>("")
 
-  const [agentInput, setAgentInput] = useState<string>("")
   const [agentErrorMessage, setAgentErrorMessage] = useState<string>("")
 
-  const [runId, setRunId] = useState<string | undefined>()
+  const [gameId, setGameId] = useState<string | undefined>()
 
   const [balance, setBalance] = useState<number>(0)
 
@@ -49,27 +48,17 @@ export function Landing(props: Props) {
     return Number.parseInt(balance.totalBalance) / Number(MIST_PER_SUI)
   }
 
-  const onStartAgent = (): void => {
-    if (!agentInput) {
-      return
-    }
-
+  const onStartGame = (): void => {
     const txb = new TransactionBlock()
-    const packageName: string = "agent"
-    const functionName: string = "init_agent"
-    const maxIterations: number = 5
+    const packageName: string = "rpg"
+    const functionName: string = "start_game"
     txb.moveCall({
       target: `${NETWORK_IDS[props.network].packageId}::${packageName}::${functionName}`,
       // object IDs must be wrapped in moveCall arguments
       arguments: [
-        txb.pure.string(agentInput),
-        txb.pure.string(""),
-        txb.pure.string(""),
-        txb.pure.u64(maxIterations),
-        txb.pure.address(NETWORK_IDS[props.network].oracleAccountAddress)
+        txb.object(NETWORK_IDS[props.network].registryObjectId),
       ],
     })
-    const createdObjects: string[] = []
     signAndExecuteTransactionBlock(
       {
         transactionBlock: txb,
@@ -83,16 +72,10 @@ export function Landing(props: Props) {
           console.log("Executed transaction block");
           console.log(result);
           (result.objectChanges || []).forEach((o: any) => {
-            if (o.objectType.includes("AgentRun")) {
-              createdObjects.push(o.objectId)
+            if (o.objectType.includes("Game") && !o.objectType.includes("GamesRegistry")) {
+              setGameId(o.objectId)
             }
           })
-          console.log("Created objects")
-          console.log(createdObjects)
-          if (createdObjects.length) {
-            registerAgent(createdObjects[0])
-            setRunId(createdObjects[0])
-          }
         },
         onError: (error) => {
           console.log("Transaction error")
@@ -102,38 +85,7 @@ export function Landing(props: Props) {
     );
   }
 
-  const registerAgent = (agentRunObjectId: string) => {
-    // TODO: wrap this functionality in a promise in async function and return isSuccess?
-    const txb = new TransactionBlock()
-    const packageName: string = "oracle"
-    const functionName: string = "register_agent"
-    txb.moveCall({
-      target: `${NETWORK_IDS[props.network].registryPackageId}::${packageName}::${functionName}`,
-      // object IDs must be wrapped in moveCall arguments
-      arguments: [
-        txb.object(NETWORK_IDS[props.network].registryObjectId),
-        txb.pure.string(NETWORK_IDS[props.network].packageId),
-        txb.pure.string(agentRunObjectId),
-      ],
-    })
-    let success: boolean = false
-    signAndExecuteTransactionBlock(
-      {
-        transactionBlock: txb,
-        // chain: `sui:${process.env.NETWORK || "devnet"}`,
-      },
-      {
-        onSuccess: (result) => {
-        },
-        onError: (error) => {
-          console.log("Oracle transaction error")
-          console.log(error)
-        }
-      },
-    );
-  }
-
-  const SUI_ADDRESS_LENGTH = 32;
+  const SUI_ADDRESS_LENGTH: number = 32;
 
   const isHex = (value: string): boolean => {
     return /^(0x|0X)?[a-fA-F0-9]+$/.test(value) && value.length % 2 === 0;
@@ -150,10 +102,10 @@ export function Landing(props: Props) {
   const onSearch = (): void => {
     if (searchInput) {
       if (!isValidSuiAddress(searchInput)) {
-        setAgentErrorMessage("Invalid object ID")
+        setSearchErrorMessage("Invalid object ID")
         return
       }
-      setRunId(searchInput)
+      setGameId(searchInput)
     }
   }
 
@@ -177,28 +129,6 @@ export function Landing(props: Props) {
               Only regular wallets supported! (no zk support)
             </div>
             <div className="flex flex-row gap-4 items-center">
-              {/*TODO: uncomment when our devnet gets a proper domain*/}
-              {/*<div>*/}
-              {/*  Network:*/}
-              {/*</div>*/}
-              {/*<div*/}
-              {/*  className={"cursor-pointer hover:text-blue-300 " + (props.network == "devnet" ? "underline" : "")}*/}
-              {/*  onClick={() => {*/}
-              {/*    props.onSwitchNetwork("devnet")*/}
-              {/*    setRunId(undefined)*/}
-              {/*  }}*/}
-              {/*>*/}
-              {/*  Devnet*/}
-              {/*</div>*/}
-              {/*<div*/}
-              {/*  className={"mr-8 cursor-pointer hover:text-blue-300 " + (props.network == "custom" ? "underline" : "")}*/}
-              {/*  onClick={() => {*/}
-              {/*    props.onSwitchNetwork("custom")*/}
-              {/*    setRunId(undefined)*/}
-              {/*  }}*/}
-              {/*>*/}
-              {/*  Galadriel Devnet*/}
-              {/*</div>*/}
               <ConnectButton
                 connectText={"Connect Wallet"}
               />
@@ -210,26 +140,21 @@ export function Landing(props: Props) {
           <div className="pb-12">
             Make sure your wallet is connected to
             <span className="pl-2 font-bold">
-              {props.network !== "devnet" ? getFullnodeUrl(props.network) : "Devnet"}
+              {props.network}
             </span>
           </div>
           <div>
-            Agent contract address: {NETWORK_IDS[props.network].packageId}
+            Game contract address: {NETWORK_IDS[props.network].packageId}
             <ExplorerLinks objectId={NETWORK_IDS[props.network].packageId} type={"object"} network={props.network}/>
           </div>
           <div className="pt-4">
-            Oracle contract address: {NETWORK_IDS[props.network].registryPackageId}
-            <ExplorerLinks objectId={NETWORK_IDS[props.network].registryPackageId} type={"object"} network={props.network}/>
+            Game registry object: {NETWORK_IDS[props.network].registryObjectId}
+            <ExplorerLinks objectId={NETWORK_IDS[props.network].registryObjectId} type={"object"}
+                           network={props.network}/>
           </div>
         </div>
         <div
           className="w-full items-center flex flex-col p-6 bg-gray-200 rounded-2xl text-black border-t-2 border-blue-300">
-          <div>
-            This demo only works on SUI devnet. Make sure your wallet has funds.<br/>
-            To Run an agent two transactions are necessary, one to initialize an agent run and the second one to
-            register
-            the agent in an oracle.
-          </div>
           <div className="flex flex-row w-full gap-4">
 
             <div className="basis-1/2 flex flex-col grow gap-4 max-w-8xl w-full relative place-items-center h-full">
@@ -238,35 +163,25 @@ export function Landing(props: Props) {
                   <div className="min-h-[24px] text-red-400">
                     {agentErrorMessage}
                   </div>
-                  <Input
-                    value={agentInput}
-                    placeholder="Agent run query"
-                    onChange={e => {
-                      setAgentInput(e.target.value)
-                      if (searchErrorMessage) setSearchErrorMessage("")
-                      if (agentErrorMessage) setAgentErrorMessage("")
-                    }
-                    }
-                  />
                   <button
                     className="p-2 px-4 rounded bg-gray-800 text-white hover:bg-gray-600 duration-200 focus:outline-none"
-                    onClick={() => onStartAgent()}
+                    onClick={() => onStartGame()}
                   >
-                    Start agent
+                    Start Game
                   </button>
                 </>
                 :
-                <div className="pt-8">Connect wallet to start an agent</div>
+                <div className="pt-8">Connect wallet to play the game!</div>
               }
             </div>
 
             <div className="basis-1/2 flex flex-col grow gap-4 max-w-8xl w-full relative place-items-center h-full">
               <div className="min-h-[24px] text-red-400">
-                {agentErrorMessage}
+                {searchErrorMessage}
               </div>
               <Input
                 value={searchInput}
-                placeholder="Existing run ID"
+                placeholder="Existing game ID"
                 onChange={e => {
                   setSearchInput(e.target.value)
                   if (searchErrorMessage) setSearchErrorMessage("")
@@ -287,7 +202,7 @@ export function Landing(props: Props) {
         <div
           className="flex flex-col grow gap-4 max-w-8xl w-full relative place-items-center h-full">
 
-          {runId && <RunExplorer runObjectId={runId} network={props.network}/>}
+          {gameId && <RunExplorer gameObjectId={gameId} network={props.network}/>}
         </div>
 
         <div>

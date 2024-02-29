@@ -14,8 +14,8 @@ const {networkConfig} = createNetworkConfig({
     url: getFullnodeUrl("devnet"),
   },
   // mainnet: {url: getFullnodeUrl("mainnet")},
-  custom: {
-    url: getFullnodeUrl("custom"),
+  localnet: {
+    url: getFullnodeUrl("localnet"),
   },
 });
 

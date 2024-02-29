@@ -1,47 +1,55 @@
 import {useEffect, useState} from "react"
-import {useSuiClient} from "@mysten/dapp-kit"
+import {useCurrentAccount, useSuiClient, useSignAndExecuteTransactionBlock} from "@mysten/dapp-kit"
 // @ts-ignore
 import {SuiParsedData} from "@mysten/sui.js/src/types"
 import {ExplorerLinks} from "@/components/explorer/explorerLinks"
-import {JSONTree} from 'react-json-tree';
-import {Network} from "@/types/network";
+import {Network, NETWORK_IDS} from "@/types/network";
+import {TransactionBlock} from '@mysten/sui.js/transactions';
+
 
 interface Props {
-  runObjectId: string
+  gameObjectId: string
   network: Network
 }
 
-interface LlmData {
+interface GamePrompt {
   id: string
   index: number
+  imageUrl: string
   content: string
-  type: string
-  functionRunId: string
 }
 
-interface AgentRun {
+interface UserSelection {
   id: string
-  owner: string
-  knowledgeBase: string
-  knowledgeBaseDescription: string
-  maxIterations: number
-  isFinished: boolean
-  llmDataId: string
-  llmData: LlmData[]
+  index: number
+  selection: number
 }
 
-export const RunExplorer = ({runObjectId, network}: Props) => {
+interface Game {
+  id: string
+  index: number
+  player: string
+  isFinished: boolean
+  promptsId: string
+  prompts: GamePrompt[]
+  userSelectionsId: string
+  userSelections: UserSelection[]
+}
+
+const SELECTIONS = ["A", "B", "C", "D"]
+
+export const RunExplorer = ({gameObjectId, network}: Props) => {
   const client = useSuiClient()
 
   let [isLoading, setIsLoading] = useState<boolean>(false)
-  let [agentRun, setAgentRun] = useState<AgentRun | undefined>()
+  let [gameRun, setGameRun] = useState<Game | undefined>()
 
   useEffect(() => {
-    if (runObjectId) {
+    if (gameObjectId) {
       setIsLoading(true)
-      getRunObject(runObjectId)
+      getGameObject(gameObjectId)
     }
-  }, [client, runObjectId])
+  }, [client, gameObjectId])
 
   const getObject = async (objectId: string) => {
     return await client.getObject({
@@ -52,58 +60,77 @@ export const RunExplorer = ({runObjectId, network}: Props) => {
     })
   }
 
-  const getRunObject = async (objectId: string) => {
+  const getGameObject = async (objectId: string) => {
     const object = await getObject(objectId);
     const content: SuiParsedData | null | undefined = object.data?.content
     if (content && content["fields"]) {
-      const fields = content["fields"]
-      const llmDataId = fields.llm_data.fields.id.id
-      const agentRun: AgentRun = {
+      const fields = content["fields"]["value"]["fields"]
+      const gameRun: Game = {
         id: objectId,
-        owner: fields.owner,
-        knowledgeBase: fields.knowledge_base,
-        knowledgeBaseDescription: fields.knowledge_base_description,
-        maxIterations: Number.parseInt(fields.max_iterations),
+        index: fields.index,
+        player: fields.player,
         isFinished: fields.is_finished,
-        llmDataId,
-        llmData: await getRunLlmData(llmDataId),
+        promptsId: fields.prompts.fields.id.id,
+        prompts: [],
+        userSelectionsId: fields.user_selections.fields.id.id,
+        userSelections: []
       }
+      gameRun.prompts = await getGamePrompts(gameRun.promptsId)
+      gameRun.userSelections = await getUserSelections(gameRun.userSelectionsId)
       setIsLoading(false)
-      setAgentRun(agentRun)
-      if (!agentRun.isFinished) {
+      setGameRun(gameRun)
+      if (!gameRun.isFinished) {
         await new Promise(r => setTimeout(r, 3000))
-        await getRunObject(objectId)
+        await getGameObject(objectId)
       }
     }
   }
 
-  const getRunLlmData = async (objectId: string) => {
+  const getGamePrompts = async (objectId: string): Promise<GamePrompt[]> => {
     const dynamicFields = await client.getDynamicFields({
       parentId: objectId,
     })
-    const llmData: LlmData[] = []
+    const prompts: GamePrompt[] = []
     for (const d of dynamicFields.data) {
       const object = await getObject(d.objectId)
-      // const content: SuiParsedData = object.data?.content
       const content: SuiParsedData | null | undefined = object.data?.content
       if (content && ((content["fields"] || {})["value"] || {})["fields"]) {
         const fields = content["fields"]["value"]["fields"]
-        llmData.push({
+        prompts.push({
           id: d.objectId,
-          index: fields.index,
+          index: parseInt(content["fields"].name),
+          imageUrl: fields.image_url,
           content: fields.content,
-          type: fields.type,
-          functionRunId: fields.function_run_id,
         })
       }
     }
-    return llmData.sort((d1, d2) => d1.index - d2.index)
+    return prompts.sort((d1, d2) => d1.index - d2.index)
+  }
+
+  const getUserSelections = async (objectId: string): Promise<UserSelection[]> => {
+    const dynamicFields = await client.getDynamicFields({
+      parentId: objectId,
+    })
+    const selections: UserSelection[] = []
+    for (const d of dynamicFields.data) {
+      const object = await getObject(d.objectId)
+      const content: SuiParsedData | null | undefined = object.data?.content
+      if (content && content.fields) {
+        const fields = content.fields
+        selections.push({
+          id: d.objectId,
+          index: parseInt(content["fields"].name),
+          selection: fields.value,
+        })
+      }
+    }
+    return selections.sort((d1, d2) => d1.index - d2.index)
   }
 
   return <>
     <div className="flex flex-col gap-y-2 w-full pt-10 pb-32">
-      {(agentRun && !isLoading) &&
-        <AgentRunDisplay agentRun={agentRun} network={network}/>
+      {(gameRun && !isLoading) &&
+        <GameDisplay game={gameRun} network={network}/>
       }
       {isLoading && <Loader/>}
     </div>
@@ -111,140 +138,144 @@ export const RunExplorer = ({runObjectId, network}: Props) => {
   </>
 }
 
-const AgentRunDisplay = ({agentRun, network}: { agentRun: AgentRun, network: Network }) => {
+const GameDisplay = ({game, network}: { game: Game, network: Network }) => {
+  const currentAccount = useCurrentAccount()
+  const {mutate: signAndExecuteTransactionBlock} = useSignAndExecuteTransactionBlock();
+
+  let [isSelectionLoading, setIsSelectionLoading] = useState<boolean>(false)
+  let [newSelection, setNewSelection] = useState<number | undefined>(undefined)
+
+  const onSelection = async (selection: number): Promise<void> => {
+    setIsSelectionLoading(true)
+    const txb = new TransactionBlock()
+    const packageName: string = "rpg"
+    const functionName: string = "add_game_answer"
+    txb.moveCall({
+      target: `${NETWORK_IDS[network].packageId}::${packageName}::${functionName}`,
+      // object IDs must be wrapped in moveCall arguments
+      arguments: [
+        txb.pure.u8(selection),
+        txb.object(NETWORK_IDS[network].registryObjectId),
+        txb.pure.u64(game.index),
+      ],
+    })
+    signAndExecuteTransactionBlock(
+      {
+        transactionBlock: txb,
+        // chain: `sui:${process.env.NETWORK || "devnet"}`,
+        options: {
+          showObjectChanges: true
+        }
+      },
+      {
+        onSuccess: (result) => {
+          console.log("Executed transaction block");
+          console.log(result);
+          setIsSelectionLoading(false)
+          setNewSelection(selection)
+        },
+        onError: (error) => {
+          console.log("Transaction error")
+          console.log(error)
+          setIsSelectionLoading(false)
+        }
+      },
+    );
+  }
+
   return <>
     <div className="bg-[#1c1a1a] rounded-2xl p-4 border-t-2 border-blue-300 border-opacity-50">
 
-      <h1 className="text-4xl font-semibold">Agent run details</h1>
+      <h1 className="text-4xl font-semibold">Game details</h1>
       <div className="flex flex-col gap-5 pt-5">
         <div className="flex flex-row gap-5">
-          <div><span className="text-blue-200">Object id:</span> {agentRun.id}</div>
-          <ExplorerLinks objectId={agentRun.id} type={"object"} network={network}/>
+          <div><span className="text-blue-200">Object id:</span> {game.id}</div>
+          <ExplorerLinks objectId={game.id} type={"object"} network={network}/>
         </div>
         <div className="flex flex-row gap-5">
-          <div><span className="text-blue-200">Owner:</span> {agentRun.owner}</div>
-          <ExplorerLinks objectId={agentRun.owner} type={"address"} network={network}/>
+          <div><span className="text-blue-200">Owner:</span> {game.player}</div>
+          <ExplorerLinks objectId={game.player} type={"address"} network={network}/>
         </div>
-        {agentRun.knowledgeBase &&
-          <div className="flex flex-row gap-5">
-            <div><span className="text-blue-200">Knowledge base:</span> {agentRun.knowledgeBase}</div>
-          </div>
-        }
-        {agentRun.knowledgeBase &&
-          <div className="flex flex-row gap-5">
-            {agentRun.knowledgeBaseDescription}
-          </div>
-        }
         <div className="flex flex-row gap-5">
-          <div><span className="text-blue-200">Max iterations:</span> {agentRun.maxIterations}</div>
 
         </div>
         <div className="flex flex-row gap-5">
-          <div><span className="text-blue-200">Status:</span> {agentRun.isFinished ? "Finished" : "Running"}</div>
+          <div><span className="text-blue-200">Status:</span> {game.isFinished ? "Finished" : "Running"}</div>
         </div>
       </div>
     </div>
 
     <div className="flex flex-col gap-y-10 pt-10">
-      {agentRun && <>
-        {agentRun.llmData.map((d, i) => <div
-          key={d.id}
-          className="flex flex-row gap-10 pt-10 border-t-2 border-blue-300 border-opacity-50 bg-[#1c1a1a] p-4 rounded-2xl"
-        >
-          <div className="basis-1/4 flex flex-col gap-3">
-            <div>Index: {d.index}</div>
-            <LlmDataType type={d.type}/>
-            <span className="text-xs">{d.id}</span>
-            <div>
-              <ExplorerLinks objectId={d.id} type={"object"} network={network}/>
+      {game && <>
+        {game.prompts.map((d, i) =>
+          <div
+            key={d.id}
+            className="flex flex-col gap-10 pt-10 border-t-2 border-blue-300 border-opacity-50 bg-[#1c1a1a] p-4 rounded-2xl"
+          >
+            <div className="flex flex-col gap-2">
+              <div>Index: {d.index}</div>
+              <div className="flex flex-row gap-2 items-center">
+                <span className="text-xs">{d.id}</span>
+                <ExplorerLinks objectId={d.id} type={"object"} network={network}/>
+              </div>
             </div>
-            {d.functionRunId && <div>
-              Function run ID: {d.functionRunId}
-            </div>}
+            <div className="mx-auto pt-10">
+              {d.imageUrl &&
+                <img
+                  src={d.imageUrl}
+                  alt={`Story illustration ${i}`}
+                  width={1000}
+                  height={1000}
+                />
+              }
+            </div>
+            <div className="whitespace-pre-line rounded-2xl bg-[#141414] bg-opacity-80 p-4">
+              <div>{d.content}</div>
+            </div>
+            {(!newSelection && game.userSelections.length < (i + 1) && currentAccount && currentAccount.address === game.player) &&
+              <>
+                {isSelectionLoading ?
+                  <Loader/>
+                  :
+                  <Selector onSelection={onSelection}/>
+                }
+              </>
+            }
+            {(newSelection || game.userSelections.length > i) &&
+              <div className="p-4">
+                User selection: {SELECTIONS[newSelection || game.userSelections[i].selection]}
+                <div className="pt-2">
+                  {game.userSelections.length > i &&
+                    <ExplorerLinks objectId={game.userSelections[i].id} type={"object"} network={network}/>
+                  }
+                </div>
+              </div>
+            }
           </div>
-          <div className="basis-3/4 whitespace-pre-line rounded-2xl bg-[#141414] bg-opacity-80 p-4">
-            <LlmDataContent text={d.content} isFirst={i === 0}/>
-          </div>
-        </div>)}
-        {!agentRun.isFinished && <Loader/>}
+        )}
+
+        {(!game.isFinished && game.prompts.length == game.userSelections.length) && <Loader/>}
       </>
       }
     </div>
   </>
 }
 
-const LlmDataType = ({type}: { type: string }) => {
-  let className: string = ""
-  if (type.toLowerCase() === "user") {
-    className = "text-green-400"
-  } else if (type.toLowerCase() === "assistant") {
-    className = "text-green-600"
-  } else if (["function", "function_result"].includes(type.toLowerCase())) {
-    className = "text-blue-400"
-  }
-  return <div className={className}>
-    Type: {type}
-  </div>
-}
+const Selector = ({onSelection}: { onSelection: (selection: number) => Promise<void> }) => {
 
-const LlmDataContent = ({text, isFirst}: { text: string, isFirst: boolean }) => {
-  function hasJsonStructure(value: string) {
-    try {
-      const result = JSON.parse(value);
-      const type = Object.prototype.toString.call(result);
-      return type === '[object Object]' || type === '[object Array]'
-    } catch (err) {
-      return false;
-    }
-  }
-
-  const theme = {
-    scheme: 'monokai',
-    author: 'wimer hazenberg (http://www.monokai.nl)',
-    base00: 'opaque',
-    base01: 'opaque',
-    base02: '#49483e',
-    base03: '#75715e',
-    base04: '#a59f85',
-    base05: '#f8f8f2',
-    base06: '#f5f4f1',
-    base07: '#f9f8f5',
-    base08: '#f92672',
-    base09: '#fd971f',
-    base0A: '#f4bf75',
-    base0B: '#b5ef72',
-    base0C: '#a1efe4',
-    base0D: '#60A5FAFF',
-    base0E: '#ae81ff',
-    base0F: '#cc6633',
-  };
-
-  return <div>
-    {!hasJsonStructure(text) ?
-      <>{isFirst ?
-        <>{text.split("Begin!\nQuestion: ").length > 1 ?
-          <>
-            {text.split("Begin!\nQuestion: ")[0]}
-            {"Begin!\nQuestion: "}
-            <span className="font-bold">
-              {text.split("Begin!\nQuestion: ")[1].split("\nThought:")[0]}
-            </span>
-            {"\nThought: "}
-          </>
-          :
-          <>{text}</>
-        }</>
-        :
-        <>{text}</>
-      }
-      </>
-      :
-      <JSONTree
-        hideRoot={true}
-        data={JSON.parse(text)}
-        theme={theme}
-      />
-    }
+  return <div className="flex flex-col gap-6 p-6">
+    Choose your next step!
+    <div className="flex flex-row gap-12">
+      {SELECTIONS.map((selection: string, i: number) =>
+        <div
+          className="border-2 rounded p-4 cursor-pointer hover:bg-white hover:text-black duration-150"
+          key={`selection-${i}`}
+          onClick={() => onSelection(i)}
+        >
+          {selection}
+        </div>
+      )}
+    </div>
   </div>
 }
 
