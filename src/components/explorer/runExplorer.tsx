@@ -20,7 +20,8 @@ interface GamePrompt {
 }
 
 interface UserSelection {
-  id: string
+  // Not yet indexed
+  id: string | undefined
   index: number
   selection: number
 }
@@ -127,10 +128,21 @@ export const RunExplorer = ({gameObjectId, network}: Props) => {
     return selections.sort((d1, d2) => d1.index - d2.index)
   }
 
+  const onNewSelection = (selection: number) => {
+    if (gameRun && gameRun.userSelections) {
+      gameRun.userSelections.push({
+        id: undefined,
+        index: gameRun.userSelections.length - 1,
+        selection: selection,
+      })
+      setGameRun(gameRun)
+    }
+  }
+
   return <>
     <div className="flex flex-col gap-y-2 w-full pt-10 pb-32">
       {(gameRun && !isLoading) &&
-        <GameDisplay game={gameRun} network={network}/>
+        <GameDisplay game={gameRun} network={network} onNewSelection={onNewSelection}/>
       }
       {isLoading && <Loader/>}
     </div>
@@ -138,12 +150,15 @@ export const RunExplorer = ({gameObjectId, network}: Props) => {
   </>
 }
 
-const GameDisplay = ({game, network}: { game: Game, network: Network }) => {
+const GameDisplay = ({game, network, onNewSelection}: {
+  game: Game,
+  network: Network,
+  onNewSelection: (selection: number) => void
+}) => {
   const currentAccount = useCurrentAccount()
   const {mutate: signAndExecuteTransactionBlock} = useSignAndExecuteTransactionBlock();
 
   let [isSelectionLoading, setIsSelectionLoading] = useState<boolean>(false)
-  let [newSelection, setNewSelection] = useState<number | undefined>(undefined)
 
   const onSelection = async (selection: number): Promise<void> => {
     setIsSelectionLoading(true)
@@ -172,7 +187,7 @@ const GameDisplay = ({game, network}: { game: Game, network: Network }) => {
           console.log("Executed transaction block");
           console.log(result);
           setIsSelectionLoading(false)
-          setNewSelection(selection)
+          onNewSelection(selection)
         },
         onError: (error) => {
           console.log("Transaction error")
@@ -232,7 +247,7 @@ const GameDisplay = ({game, network}: { game: Game, network: Network }) => {
             <div className="whitespace-pre-line rounded-2xl bg-[#141414] bg-opacity-80 p-4">
               <div>{d.content}</div>
             </div>
-            {(!newSelection && game.userSelections.length < (i + 1) && currentAccount && currentAccount.address === game.player) &&
+            {(game.userSelections.length < (i + 1) && currentAccount && currentAccount.address === game.player) &&
               <>
                 {isSelectionLoading ?
                   <Loader/>
@@ -241,12 +256,12 @@ const GameDisplay = ({game, network}: { game: Game, network: Network }) => {
                 }
               </>
             }
-            {(newSelection || game.userSelections.length > i) &&
+            {game.userSelections.length > i &&
               <div className="p-4">
-                User selection: {SELECTIONS[newSelection || game.userSelections[i].selection]}
+                User selection: {SELECTIONS[game.userSelections[i].selection]}
                 <div className="pt-2">
-                  {game.userSelections.length > i &&
-                    <ExplorerLinks objectId={game.userSelections[i].id} type={"object"} network={network}/>
+                  {(game.userSelections.length > i && game.userSelections[i].id) &&
+                    <ExplorerLinks objectId={game.userSelections[i].id || ""} type={"object"} network={network}/>
                   }
                 </div>
               </div>
